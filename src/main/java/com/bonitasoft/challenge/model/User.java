@@ -2,12 +2,15 @@ package com.bonitasoft.challenge.model;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
+import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 import org.springframework.lang.NonNull;
 
@@ -16,26 +19,31 @@ import org.springframework.lang.NonNull;
 public class User {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@GeneratedValue(strategy = GenerationType.IDENTITY, generator = "user_id_sequence")
+	@SequenceGenerator(initialValue = 2, name = "user_id_sequence", allocationSize = 1)
 	@Column(name = "user_id")
 	@NonNull
 	public Long id;
 
-	@ManyToOne(targetEntity = Role.class)
-	@JoinColumn(name = "role_id")
+	@Column(name = "role_type")
+	@Enumerated(EnumType.STRING)
 	@NonNull
-	private Role role;
+	@NotNull
+	private RoleType role;
 
 	@Column(name = "user_name", unique = true)
 	@NonNull
+	@NotBlank
 	private String userName;
 
 	@Column(name = "user_password")
 	@NonNull
+	@NotBlank
 	private String userPassword;
 
 	@Column(name = "user_email", unique = true)
 	@NonNull
+	@NotBlank
 	private String userEmail;
 
 	/**
@@ -62,14 +70,14 @@ public class User {
 	/**
 	 * @return the role
 	 */
-	public Role getRole() {
+	public RoleType getRole() {
 		return role;
 	}
 
 	/**
 	 * @param role the role to set
 	 */
-	public void setRole(Role role) {
+	public void setRole(RoleType role) {
 		this.role = role;
 	}
 
