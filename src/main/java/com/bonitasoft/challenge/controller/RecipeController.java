@@ -2,10 +2,13 @@ package com.bonitasoft.challenge.controller;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -48,6 +51,62 @@ public class RecipeController {
 	@Autowired
 	CommentRepo commentRepo;
 
+	Logger logger = LogManager.getLogger(RecipeController.class);
+
+	/**
+	 * Check if the user exists, and if it has the right role
+	 * 
+	 * @param id       ID of the user to be checked
+	 * @param roleType The Roles that the user must be
+	 * @return The user
+	 * 
+	 * @exception ResponseStatusException In these cases: <br>
+	 *                                    - When the user doesn't exist <br>
+	 *                                    - When the role of the user doesn't allow
+	 *                                    the requested operation
+	 */
+	private User checkUser(Long id, RoleType... roleType) {
+
+		logger.info(String.format("Checking if the user with ID %d exists, and if it has the right role %s", id,
+				roleType.toString()));
+		Optional<User> user = userRepo.findById(id);
+		logger.info("User info: " + user.toString());
+
+		// If the user doesn't exists
+		if (user.isEmpty()) {
+			logger.error("The user doesn't exist");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+
+			// If the role doesn't allow the requested operation
+		} else if (Stream.of(roleType).filter(r -> r.equals(user.get().getRole())).findAny().isEmpty()) {
+			logger.error("The role of the user doesn't allow the requested operation");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"The role of the user doesn't allow the requested operation");
+		}
+
+		return user.get();
+	}
+
+	/**
+	 * Check if the recipe exists
+	 * 
+	 * @param recipeId ID of the recipe to be checked
+	 * @return Object containing the recipe
+	 * 
+	 * @exception ResponseStatusException If the recipe doesn't exist
+	 */
+	private Recipe checkRecipe(Long recipeId) {
+
+		// Check if the recipe exists
+		Optional<Recipe> recipe = recipeRepo.findById(recipeId);
+		if (recipe.isEmpty()) {
+			logger.error("The recipe doesn't exist");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The recipe doesn't exist");
+		}
+
+		return recipe.get();
+	}
+
 	/**
 	 * API to get all the recipes created by a user
 	 * 
@@ -61,21 +120,10 @@ public class RecipeController {
 	@GetMapping("/{id}/recipe")
 	public List<Recipe> getRecipesByUser(@NotNull @PathVariable("id") Long id) {
 
-		// If user exists, read all recipes
-		Optional<User> user = userRepo.findById(id);
-		if (user.isPresent()) {
-
-			// We can perform the action if the user is a CHEF
-			if (RoleType.CHEF.equals(user.get().getRole())) {
-				return recipeRepo.findByAuthor(user.get());
-
-			} else {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user isn't a chef");
-			}
-
-		} else {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
-		}
+		// If user exists and it has the right role
+		logger.info("Listing all recipes for user with ID %d", id);
+		User user = checkUser(id, RoleType.CHEF);
+		return recipeRepo.findByAuthor(user);
 	}
 
 	/**
@@ -94,61 +142,54 @@ public class RecipeController {
 	@PostMapping("/{id}/recipe")
 	public Recipe createRecipe(@NotNull @PathVariable("id") Long id, @Valid @RequestBody Recipe recipe) {
 
-		Optional<User> user = userRepo.findById(id);
-		if (user.isPresent()) {
+		logger.info(String.format("Create a new recipe for user with ID %d, with recipe information %s", id,
+				recipe.toString()));
 
-			// We can perform the action if the user is a CHEF
-			if (RoleType.CHEF.equals(user.get().getRole())) {
+		// If user exists and it has the right role
+		User user = checkUser(id, RoleType.CHEF);
 
-				// Check that there is no other recipe created by the same user with the same
-				// name
-				if (recipeRepo.findOptionalByAuthorAndRecipeName(user.get(), recipe.getRecipeName()).isEmpty()) {
+		// Check that there is no other recipe created by the same user with the same
+		// name
+		if (recipeRepo.findOptionalByAuthorAndRecipeName(user, recipe.getRecipeName()).isEmpty()) {
 
-					recipe.setAuthor(user.get());
+			recipe.setAuthor(user);
 
-					// Check if ingredients already exists
-					recipe.getIngredients().stream().forEach(i -> {
-						Optional<Ingredient> ingredient = ingredientRepo.findOptionalByIngredient(i.getIngredient());
+			// Check if ingredients already exists
+			recipe.getIngredients().stream().forEach(i -> {
+				Optional<Ingredient> ingredient = ingredientRepo.findOptionalByIngredient(i.getIngredient());
 
-						// If it doesn't exists, we create a new one
-						if (ingredient.isEmpty()) {
-							i.setId(ingredientRepo.save(i).getId());
+				// If it doesn't exists, we create a new one
+				if (ingredient.isEmpty()) {
+					i.setId(ingredientRepo.save(i).getId());
 
-							// Otherwise we just update the ID
-						} else {
-							i.setId(ingredient.get().getId());
-						}
-					});
-
-					// Same thing for keywords
-					recipe.getKeywords().stream().forEach(k -> {
-						Optional<Keyword> keyword = keywordRepo.findOptionalByKeyword(k.getKeyword());
-						if (keyword.isEmpty()) {
-							k.setId(keywordRepo.save(k).getId());
-						} else {
-							k.setId(keyword.get().getId());
-						}
-					});
-					return recipeRepo.save(recipe);
-
+					// Otherwise we just update the ID
 				} else {
-					throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-							"The recipe already exists. Change the name of the recipe");
+					i.setId(ingredient.get().getId());
 				}
+			});
 
-			} else {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user isn't a chef");
-			}
+			// Same thing for keywords
+			recipe.getKeywords().stream().forEach(k -> {
+				Optional<Keyword> keyword = keywordRepo.findOptionalByKeyword(k.getKeyword());
+				if (keyword.isEmpty()) {
+					k.setId(keywordRepo.save(k).getId());
+				} else {
+					k.setId(keyword.get().getId());
+				}
+			});
+			return recipeRepo.save(recipe);
 
 		} else {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+			logger.error("The recipe already exists. Change the name of the recipe");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"The recipe already exists. Change the name of the recipe");
 		}
 	}
 
 	/**
-	 * API to update a recipe for an existing usr
+	 * API to update a recipe for an existing user
 	 * 
-	 * @param id       ID of the user who has created the recipe
+	 * @param userId   ID of the user who has created the recipe
 	 * @param recipeId ID of the recipe to be updated
 	 * @param recipe   The object containing the info to be updated
 	 * @return An object containing the new information of the recipe
@@ -158,76 +199,60 @@ public class RecipeController {
 	 *                                    - The recipe doesn't exist <br>
 	 *                                    - The user had already created a recipe
 	 *                                    with the same name. A new name must be
-	 *                                    choosen <br>
+	 *                                    chosen <br>
 	 *                                    - When the user isn't a chef
 	 */
 	@PutMapping("/{id}/recipe/{recipeId}")
-	public Recipe updateRecipe(@NotNull @PathVariable("id") Long id, @NotNull @PathVariable("recipeId") Long recipeId,
-			@Valid @RequestBody Recipe recipe) {
+	public Recipe updateRecipe(@NotNull @PathVariable("id") Long userId,
+			@NotNull @PathVariable("recipeId") Long recipeId, @Valid @RequestBody Recipe recipe) {
 
-		// Check if the user exists
-		Optional<User> user = userRepo.findById(id);
-		if (user.isPresent()) {
+		logger.info(
+				String.format("Updating an existing recipe with ID %d for user with ID %d, with recipe information %s",
+						recipeId, userId, recipe.toString()));
 
-			// We can perform the action if the user is a CHEF
-			if (RoleType.CHEF.equals(user.get().getRole())) {
+		// If user exists and it has the right role
+		checkUser(userId, RoleType.CHEF);
 
-				// Check if the recipe exists
-				Optional<Recipe> recipeToBeUpdated = recipeRepo.findById(recipeId);
-				if (recipeToBeUpdated.isPresent()) {
+		// Check if the recipe exists
+		Recipe recipeToBeUpdated = checkRecipe(recipeId);
 
-					// Check if there is already a recipe with the same name
-					Optional<Recipe> recipeWithSameName = recipeRepo.findOptionalByAuthorAndRecipeName(
-							recipeToBeUpdated.get().getAuthor(), recipe.getRecipeName());
-					if (recipeWithSameName.isEmpty()
-							|| recipeWithSameName.get().getId().equals(recipeToBeUpdated.get().getId())) {
+		// Check if there is already a recipe with the same name
+		Optional<Recipe> recipeWithSameName = recipeRepo
+				.findOptionalByAuthorAndRecipeName(recipeToBeUpdated.getAuthor(), recipe.getRecipeName());
+		if (recipeWithSameName.isEmpty() || recipeWithSameName.get().getId().equals(recipeToBeUpdated.getId())) {
 
-						// Update the data and save the recipe
-						recipe.setId(recipeToBeUpdated.get().getId());
-						recipe.setAuthor(recipeToBeUpdated.get().getAuthor());
-						recipe.setComments(recipeToBeUpdated.get().getComments());
+			// Update the data and save the recipe
+			recipe.setId(recipeToBeUpdated.getId());
+			recipe.setAuthor(recipeToBeUpdated.getAuthor());
+			recipe.setComments(recipeToBeUpdated.getComments());
 
-						// Check if the ingredients already exist in DDBB
-						recipe.getIngredients().stream().forEach(i -> {
+			// Check if the ingredients already exist in DDBB
+			recipe.getIngredients().stream().forEach(i -> {
 
-							// We use findFirst because only one ingredient with the same name exists in the
-							// DDBB
-							Optional<Ingredient> existingIngredient = recipeToBeUpdated.get().getIngredients().stream()
-									.filter(j -> j.getIngredient().equals(i.getIngredient())).findFirst();
-							if (existingIngredient.isPresent()) {
-								i.setId(existingIngredient.get().getId());
-							}
-
-						});
-
-						// Check if keywords already exist in DDBB
-						recipe.getKeywords().stream().forEach(k -> {
-							Optional<Keyword> existingKeyword = recipeToBeUpdated.get().getKeywords().stream()
-									.filter(l -> l.getKeyword().equals(k.getKeyword())).findFirst();
-							if (existingKeyword.isPresent()) {
-								k.setId(existingKeyword.get().getId());
-							}
-						});
-
-						return recipeRepo.save(recipe);
-
-					} else {
-						throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-								"There is already an existing recipe with this name. Please, change the name");
-
-					}
-
-				} else {
-					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The recipe doesn't exist");
-
+				// We use findFirst because only one ingredient with the same name exists in the
+				// DDBB
+				Optional<Ingredient> existingIngredient = ingredientRepo.findOptionalByIngredient(i.getIngredient());
+				if (existingIngredient.isPresent()) {
+					i.setId(existingIngredient.get().getId());
 				}
 
-			} else {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user isn't a chef");
-			}
+			});
+
+			// Check if keywords already exist in DDBB
+			recipe.getKeywords().stream().forEach(k -> {
+				Optional<Keyword> existingKeyword = keywordRepo.findOptionalByKeyword(k.getKeyword());
+				if (existingKeyword.isPresent()) {
+					k.setId(existingKeyword.get().getId());
+				}
+			});
+
+			return recipeRepo.save(recipe);
 
 		} else {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+			logger.error("There is already an existing recipe with this name. Please, change the name");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"There is already an existing recipe with this name. Please, change the name");
+
 		}
 	}
 
@@ -244,44 +269,29 @@ public class RecipeController {
 	 *                                    user doesn't exist
 	 */
 	@DeleteMapping("/{id}/recipe/{recipeId}")
-	public void deleteRecipe(@NotNull @PathVariable("id") Long id, @NotNull @PathVariable("recipeId") Long recipeId) {
+	public void deleteRecipe(@NotNull @PathVariable("id") Long userId,
+			@NotNull @PathVariable("recipeId") Long recipeId) {
 
-		// Check if the user exists
-		Optional<User> user = userRepo.findById(id);
-		if (user.isPresent()) {
+		logger.info(String.format("New request to delete the recipe with ID %d created by the user with ID %d",
+				recipeId, userId));
 
-			// We can perform the action if the user is a CHEF
-			if (RoleType.CHEF.equals(user.get().getRole())) {
+		// If user exists and it has the right role
+		User user = checkUser(userId, RoleType.CHEF);
 
-				// If the recipe exists, delete all the comments, and finally the recipe
-				Optional<Recipe> recipeToBeDeleted = recipeRepo.findById(recipeId);
+		// If the recipe exists, delete all the comments, and finally the recipe
+		Recipe recipeToBeDeleted = checkRecipe(recipeId);
 
-				if (recipeToBeDeleted.isPresent()) {
-
-					// Check if the recipe belongs to the user
-					if (recipeToBeDeleted.get().getAuthor().getId().equals(id)) {
-						// TODO: check if this is needed
+		// Check if the recipe belongs to the user
+		if (recipeToBeDeleted.getAuthor().getId().equals(userId)) {
+			// TODO: check if this is needed
 //						recipeToBeDeleted.get().getComments().stream().forEach(c -> commentRepo.delete(c));
-						recipeRepo.delete(recipeToBeDeleted.get());
-
-					} else {
-						throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-								"The recipe doesn't belong to the user " + user.get().getUserName());
-
-					}
-				} else {
-					throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The recipe doesn't exist");
-
-				}
-
-			} else {
-				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user isn't a chef");
-			}
+			recipeRepo.delete(recipeToBeDeleted);
 
 		} else {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+			logger.error("The recipe doesn't belong to the user " + user.getUserName());
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"The recipe doesn't belong to the user " + user.getUserName());
 
 		}
 	}
-
 }
