@@ -19,7 +19,7 @@ public class Ingredient {
 	@NonNull
 	private Long id;
 
-	@Column(name = "ingredient")
+	@Column(name = "ingredient", unique = true)
 	@NonNull
 	private String ingredient;
 
@@ -28,6 +28,14 @@ public class Ingredient {
 	 */
 	public Ingredient() {
 		super();
+	}
+
+	/**
+	 * @param ingredient
+	 */
+	public Ingredient(String ingredient) {
+		super();
+		this.ingredient = ingredient;
 	}
 
 	/**

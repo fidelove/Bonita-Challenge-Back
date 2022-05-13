@@ -18,7 +18,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.User;
+import com.bonitasoft.challenge.repository.CommentRepo;
+import com.bonitasoft.challenge.repository.RecipeRepo;
 import com.bonitasoft.challenge.repository.UserRepo;
 import com.google.common.collect.Lists;
 
@@ -29,21 +32,44 @@ public class UserController {
 	@Autowired
 	UserRepo userRepo;
 
+	@Autowired
+	RecipeRepo recipeRepo;
+
+	@Autowired
+	CommentRepo commentRepo;
+
 	@GetMapping(path = "/users", name = "Get all users")
 	public List<User> allUsers() {
 
 		return Lists.newArrayList(userRepo.findAll());
 	}
 
+	/**
+	 * API to get the user object identified by the ID
+	 * 
+	 * @param id ID defining the requested user
+	 * @return Requested user
+	 * 
+	 * @exception ResponseStatusException When the user doesn't exist
+	 */
 	@GetMapping("/user/{id}")
-	public User getUserByName(@NotNull @PathVariable("id") Long id) {
+	public User getUserById(@NotNull @PathVariable("id") Long id) {
 
 		return userRepo.findById(id)
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist"));
 	}
 
+	/**
+	 * API to create a new user
+	 * 
+	 * @param user the user information to create a new user
+	 * @return The created user
+	 * 
+	 * @exception ResponseStatusException When te user already exists
+	 */
 	@PostMapping(path = "/user")
 	public User createUser(@Valid @RequestBody User user) {
+
 		if (!userRepo.findByUserNameOrUserEmail(user.getUserName(), user.getUserEmail()).isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user already exists");
 
@@ -52,13 +78,22 @@ public class UserController {
 		}
 	}
 
+	/**
+	 * API to update a user information
+	 * 
+	 * @param id   ID to identify the user to be updated
+	 * @param user The new user information
+	 * @return The updated user
+	 * 
+	 * @exception ResponseStatusException When: <br>
+	 *                                    - The user information already exists <br>
+	 *                                    - The user doesn't exist
+	 */
 	@PutMapping("/user/{id}")
 	public User updateUser(@NotNull @PathVariable Long id, @RequestBody User user) {
 
-		Optional<User> userToBeUpdated = userRepo.findById(id);
-
 		// If the user id exists in the DDBB
-		if (userToBeUpdated.isPresent()) {
+		if (userRepo.existsById(id)) {
 
 			List<User> usersWithUsernameOrEmail = userRepo.findByUserNameOrUserEmail(user.getUserName(),
 					user.getUserEmail());
@@ -83,8 +118,36 @@ public class UserController {
 		}
 	}
 
+	/**
+	 * API to delete the user information
+	 * 
+	 * @param id ID to identify the user
+	 * 
+	 * @exception ResponseStatusException When the user doesn't exist
+	 */
 	@DeleteMapping("/user/{id}")
 	public void deleteUser(@NotNull @PathVariable("id") Long id) {
-		userRepo.deleteById(id);
+
+		Optional<User> userToBeDeleted = userRepo.findById(id);
+
+		// If the user exists, delete all its recipes and all the comments
+		if (userToBeDeleted.isPresent()) {
+
+			List<Recipe> recipesToBeDeleted = recipeRepo.findByAuthor(userToBeDeleted.get());
+			recipesToBeDeleted.stream().forEach(r -> {
+				// TODO: igual el comments no hace falta
+//				r.getComments().stream().forEach(c -> {
+//					commentRepo.delete(c);
+//				});
+				recipeRepo.delete(r);
+			});
+
+			// And finally delete the user
+			userRepo.delete(userToBeDeleted.get());
+
+		} else {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+
+		}
 	}
 }

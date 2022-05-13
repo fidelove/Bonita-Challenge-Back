@@ -19,7 +19,7 @@ public class Keyword {
 	@NonNull
 	private Long id;
 
-	@Column(name = "keyword")
+	@Column(name = "keyword", unique = true)
 	@NonNull
 	private String keyword;
 
@@ -28,6 +28,14 @@ public class Keyword {
 	 */
 	public Keyword() {
 		super();
+	}
+
+	/**
+	 * @param keyword
+	 */
+	public Keyword(String keyword) {
+		super();
+		this.keyword = keyword;
 	}
 
 	/**

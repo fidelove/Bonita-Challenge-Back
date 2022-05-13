@@ -15,6 +15,8 @@ import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotEmpty;
 
 import org.springframework.lang.NonNull;
 
@@ -35,16 +37,19 @@ public class Recipe {
 
 	@Column(name = "recipe_name")
 	@NonNull
+	@NotBlank
 	private String recipeName;
 
-	@ManyToMany
+	@ManyToMany(cascade = CascadeType.MERGE)
 	@JoinTable(name = "ingredients_recipes", joinColumns = { @JoinColumn(name = "recipe_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "ingredient_id") })
+	@NotEmpty
 	private List<Ingredient> ingredients;
 
-	@ManyToMany
+	@ManyToMany(cascade = CascadeType.MERGE)
 	@JoinTable(name = "keywords_recipes", joinColumns = { @JoinColumn(name = "recipe_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "keyword_id") })
+	@NotEmpty
 	private List<Keyword> keywords;
 
 	@OneToMany(mappedBy = "recipe", cascade = CascadeType.REMOVE)
@@ -110,6 +115,13 @@ public class Recipe {
 	}
 
 	/**
+	 * @param ingredients the ingredients to set
+	 */
+	public void setIngredients(List<Ingredient> ingredients) {
+		this.ingredients = ingredients;
+	}
+
+	/**
 	 * @return the keywords
 	 */
 	public List<Keyword> getKeywords() {
@@ -117,10 +129,24 @@ public class Recipe {
 	}
 
 	/**
+	 * @param keywords the keywords to set
+	 */
+	public void setKeywords(List<Keyword> keywords) {
+		this.keywords = keywords;
+	}
+
+	/**
 	 * @return the comments
 	 */
 	public List<Comment> getComments() {
 		return comments;
+	}
+
+	/**
+	 * @param comments the comments to set
+	 */
+	public void setComments(List<Comment> comments) {
+		this.comments = comments;
 	}
 
 	@Override
