@@ -36,6 +36,9 @@ public class CommentController extends AbstractController {
 	public Comment createComment(@NotNull @PathVariable("userId") Long userId,
 			@NotNull @PathVariable("recipeId") Long recipeId, @Valid @RequestBody Comment comment) {
 
+		logger.info(String.format(
+				"Creating a new comment by user with ID %d, in recipe with ID %d with the next comment: %s", userId,
+				recipeId, comment.getComment()));
 		// Check if the user and the recipe exist
 		User userCreatingComment = checkUser(userId, RoleType.USER);
 		Recipe recipeToBeCommented = checkRecipe(recipeId);
@@ -45,6 +48,7 @@ public class CommentController extends AbstractController {
 		comment.setRecipe(recipeToBeCommented);
 		comment.setCreated(LocalDateTime.now());
 
+		logger.info("The new comment will be finally created");
 		return commentRepo.save(comment);
 	}
 }
