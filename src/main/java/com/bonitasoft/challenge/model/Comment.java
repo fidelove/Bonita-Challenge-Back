@@ -10,8 +10,11 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+import javax.validation.constraints.NotBlank;
 
 import org.springframework.lang.NonNull;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "comments")
@@ -26,10 +29,12 @@ public class Comment {
 	@NonNull
 	@ManyToOne(targetEntity = Recipe.class)
 	@JoinColumn(name = "recipe_id")
+	@JsonIgnore
 	private Recipe recipe;
 
 	@NonNull
 	@ManyToOne(targetEntity = User.class)
+	@JsonIgnore
 	private User author;
 
 	@NonNull
@@ -38,6 +43,7 @@ public class Comment {
 
 	@NonNull
 	@Column(name = "user_comment")
+	@NotBlank
 	private String comment;
 
 	/**
@@ -103,11 +109,25 @@ public class Comment {
 		this.created = created;
 	}
 
+	/**
+	 * @return the comment
+	 */
+	public String getComment() {
+		return comment;
+	}
+
+	/**
+	 * @param comment the comment to set
+	 */
+	public void setComment(String comment) {
+		this.comment = comment;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder();
-		builder.append("Comment [id=").append(id).append(", recipe=").append(recipe).append(", author=").append(author)
-				.append(", created=").append(created).append(", comment=").append(comment).append("]");
+		builder.append("Comment [id=").append(id).append(", created=").append(created).append(", comment=")
+				.append(comment).append("]");
 		return builder.toString();
 	}
 }

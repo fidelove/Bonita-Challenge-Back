@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
+import com.bonitasoft.challenge.model.Keyword;
 import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.User;
 
@@ -29,4 +30,12 @@ public interface RecipeRepo extends CrudRepository<Recipe, Long> {
 	 * @return Optional object containing the recipe
 	 */
 	Optional<Recipe> findOptionalByAuthorAndRecipeName(User user, String recipeName);
+
+	/**
+	 * Gets a list of recipes containing the keywords
+	 * 
+	 * @param keywords List of keywords to be searched
+	 * @return List of recipes
+	 */
+	List<Recipe> findByKeywordsIn(List<Keyword> keywords);
 }

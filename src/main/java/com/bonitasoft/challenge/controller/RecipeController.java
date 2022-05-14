@@ -2,14 +2,13 @@ package com.bonitasoft.challenge.controller;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,85 +26,41 @@ import com.bonitasoft.challenge.model.Keyword;
 import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.RoleType;
 import com.bonitasoft.challenge.model.User;
-import com.bonitasoft.challenge.repository.CommentRepo;
-import com.bonitasoft.challenge.repository.IngredientRepo;
-import com.bonitasoft.challenge.repository.KeywordRepo;
-import com.bonitasoft.challenge.repository.RecipeRepo;
-import com.bonitasoft.challenge.repository.UserRepo;
+import com.google.common.collect.Lists;
 
 @RestController
-@RequestMapping("/api/v1/user")
-public class RecipeController {
-
-	@Autowired
-	UserRepo userRepo;
-
-	@Autowired
-	RecipeRepo recipeRepo;
-
-	@Autowired
-	IngredientRepo ingredientRepo;
-
-	@Autowired
-	KeywordRepo keywordRepo;
-
-	@Autowired
-	CommentRepo commentRepo;
+@RequestMapping("/api/v1")
+public class RecipeController extends AbstractController {
 
 	Logger logger = LogManager.getLogger(RecipeController.class);
 
 	/**
-	 * Check if the user exists, and if it has the right role
+	 * API to list the recipes. If the param keywords is present, the request will
+	 * be filtered, otherwise all recipes will be returned
 	 * 
-	 * @param id       ID of the user to be checked
-	 * @param roleType The Roles that the user must be
-	 * @return The user
-	 * 
-	 * @exception ResponseStatusException In these cases: <br>
-	 *                                    - When the user doesn't exist <br>
-	 *                                    - When the role of the user doesn't allow
-	 *                                    the requested operation
+	 * @param keywords Optional parameter. If it's present, it'll contain the
+	 *                 keywords
+	 * @return List containing the requested recipes
 	 */
-	private User checkUser(Long id, RoleType... roleType) {
+	@GetMapping("/recipes")
+	public List<Recipe> getRecipesByKeywords(@RequestParam Optional<List<String>> keywords) {
 
-		logger.info(String.format("Checking if the user with ID %d exists, and if it has the right role %s", id,
-				roleType.toString()));
-		Optional<User> user = userRepo.findById(id);
-		logger.info("User info: " + user.toString());
+		// If there is a filter by keywords
+		if (keywords.isPresent()) {
+			logger.info("Listing all recipes filtered by " + keywords.toString());
 
-		// If the user doesn't exists
-		if (user.isEmpty()) {
-			logger.error("The user doesn't exist");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
+			// Check all the existing keywords
+			List<Keyword> existingKeywords = keywords.get().stream().map(k -> keywordRepo.findOptionalByKeyword(k))
+					.filter(Optional::isPresent).map(Optional::get).collect(Collectors.toList());
 
-			// If the role doesn't allow the requested operation
-		} else if (Stream.of(roleType).filter(r -> r.equals(user.get().getRole())).findAny().isEmpty()) {
-			logger.error("The role of the user doesn't allow the requested operation");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-					"The role of the user doesn't allow the requested operation");
+			// And filter by these keywords
+			return recipeRepo.findByKeywordsIn(existingKeywords);
+
+			// If there is no filter
+		} else {
+			logger.info("Listing all recipes");
+			return Lists.newArrayList(recipeRepo.findAll());
 		}
-
-		return user.get();
-	}
-
-	/**
-	 * Check if the recipe exists
-	 * 
-	 * @param recipeId ID of the recipe to be checked
-	 * @return Object containing the recipe
-	 * 
-	 * @exception ResponseStatusException If the recipe doesn't exist
-	 */
-	private Recipe checkRecipe(Long recipeId) {
-
-		// Check if the recipe exists
-		Optional<Recipe> recipe = recipeRepo.findById(recipeId);
-		if (recipe.isEmpty()) {
-			logger.error("The recipe doesn't exist");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The recipe doesn't exist");
-		}
-
-		return recipe.get();
 	}
 
 	/**
@@ -117,11 +73,12 @@ public class RecipeController {
 	 *                                    - When the user doesn't exist <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@GetMapping("/{id}/recipe")
+	@GetMapping("/user/{id}/recipe")
 	public List<Recipe> getRecipesByUser(@NotNull @PathVariable("id") Long id) {
 
-		// If user exists and it has the right role
 		logger.info("Listing all recipes for user with ID %d", id);
+
+		// If user exists and it has the right role
 		User user = checkUser(id, RoleType.CHEF);
 		return recipeRepo.findByAuthor(user);
 	}
@@ -139,7 +96,7 @@ public class RecipeController {
 	 *                                    - When the user doesn't exist <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@PostMapping("/{id}/recipe")
+	@PostMapping("/user/{id}/recipe")
 	public Recipe createRecipe(@NotNull @PathVariable("id") Long id, @Valid @RequestBody Recipe recipe) {
 
 		logger.info(String.format("Create a new recipe for user with ID %d, with recipe information %s", id,
@@ -202,7 +159,7 @@ public class RecipeController {
 	 *                                    chosen <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@PutMapping("/{id}/recipe/{recipeId}")
+	@PutMapping("/user/{id}/recipe/{recipeId}")
 	public Recipe updateRecipe(@NotNull @PathVariable("id") Long userId,
 			@NotNull @PathVariable("recipeId") Long recipeId, @Valid @RequestBody Recipe recipe) {
 
@@ -268,7 +225,7 @@ public class RecipeController {
 	 *                                    - When the user isn't a chef - When the
 	 *                                    user doesn't exist
 	 */
-	@DeleteMapping("/{id}/recipe/{recipeId}")
+	@DeleteMapping("/user/{id}/recipe/{recipeId}")
 	public void deleteRecipe(@NotNull @PathVariable("id") Long userId,
 			@NotNull @PathVariable("recipeId") Long recipeId) {
 

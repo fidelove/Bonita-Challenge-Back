@@ -1,14 +1,12 @@
 package com.bonitasoft.challenge.controller;
 
 import java.util.List;
-import java.util.Optional;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,45 +20,13 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.User;
-import com.bonitasoft.challenge.repository.CommentRepo;
-import com.bonitasoft.challenge.repository.RecipeRepo;
-import com.bonitasoft.challenge.repository.UserRepo;
 import com.google.common.collect.Lists;
 
 @RestController
 @RequestMapping("/api/v1")
-public class UserController {
-
-	@Autowired
-	UserRepo userRepo;
-
-	@Autowired
-	RecipeRepo recipeRepo;
-
-	@Autowired
-	CommentRepo commentRepo;
+public class UserController extends AbstractController {
 
 	Logger logger = LogManager.getLogger(UserController.class);
-
-	/**
-	 * Check if the user already exists
-	 * 
-	 * @param userId ID of the user to be checked
-	 * @return An object containing the information of the user
-	 * 
-	 * @exception ResponseStatusException When the user doesn't exist
-	 */
-	private User checkUserExists(Long userId) {
-		Optional<User> user = userRepo.findById(userId);
-
-		// If the user doesn't exist
-		if (user.isEmpty()) {
-			logger.error("The user doesn't exist");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user doesn't exist");
-		}
-
-		return user.get();
-	}
 
 	@GetMapping(path = "/users")
 	public List<User> allUsers() {
