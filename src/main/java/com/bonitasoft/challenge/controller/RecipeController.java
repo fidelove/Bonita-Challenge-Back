@@ -10,6 +10,7 @@ import javax.validation.constraints.NotNull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -30,6 +32,8 @@ import com.google.common.collect.Lists;
 
 @RestController
 @RequestMapping("/api/v1")
+@CrossOrigin(origins = "*", methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT,
+		RequestMethod.DELETE })
 public class RecipeController extends AbstractController {
 
 	Logger logger = LogManager.getLogger(RecipeController.class);
@@ -240,8 +244,6 @@ public class RecipeController extends AbstractController {
 
 		// Check if the recipe belongs to the user
 		if (recipeToBeDeleted.getAuthor().getId().equals(userId)) {
-			// TODO: check if this is needed
-//						recipeToBeDeleted.get().getComments().stream().forEach(c -> commentRepo.delete(c));
 			recipeRepo.delete(recipeToBeDeleted);
 
 		} else {

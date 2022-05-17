@@ -3,6 +3,7 @@ package com.bonitasoft.challenge.controller;
 import java.io.IOException;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import javax.mail.Message;
@@ -19,9 +20,11 @@ import javax.mail.internet.MimeMultipart;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,16 +32,30 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.User;
+import com.bonitasoft.challenge.model.UserLogged;
 import com.google.common.collect.Lists;
 
 @RestController
 @RequestMapping("/api/v1")
+@CrossOrigin(origins = "*", methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT,
+		RequestMethod.DELETE })
 public class UserController extends AbstractController {
+
+	/**
+	 * Bean used to encode passwords to be stored in the DDBB
+	 * 
+	 * @return
+	 */
+//	@Bean
+//	public PasswordEncoder encoder() {
+//		return new BCryptPasswordEncoder();
+//	}
 
 	Logger logger = LogManager.getLogger(UserController.class);
 
@@ -69,7 +86,9 @@ public class UserController extends AbstractController {
 
 			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(user.getUserEmail()));
 			msg.setSubject("New account created");
-			msg.setContent("Your new account has been created successfully", "text/html");
+			msg.setContent(String.format(
+					"Your new account has been created successfully!!<br> The username is %s and the password is %s",
+					user.getUserName(), user.getUserPassword()), "text/html");
 			msg.setSentDate(new Date());
 
 			MimeBodyPart messageBodyPart = new MimeBodyPart();
@@ -85,9 +104,58 @@ public class UserController extends AbstractController {
 		}
 	}
 
+	/**
+	 * API used to login
+	 * 
+	 * @param user
+	 * @return True if the login and the password matches the information in the
+	 *         DDBB, false otherwise
+	 */
+	@PostMapping("/login")
+	public UserLogged login(@RequestBody User user) {
+
+		logger.info("New login request");
+		Optional<User> optionalUser = userRepo.findOptionalByUserName(user.getUserName());
+		if (optionalUser.isPresent() && user.getUserPassword().equals(optionalUser.get().getUserPassword())) {
+			UserLogged userLogged = new UserLogged(optionalUser.get());
+			userLogged.setSessionId(RandomStringUtils.randomAlphanumeric(40));
+			sessionManager.put(userLogged.getSessionId(), optionalUser.get().getId());
+			return userLogged;
+
+		} else {
+			logger.error("The user login doesn't exist");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user login doesn't exist");
+		}
+	}
+
+	/**
+	 * API used to login
+	 * 
+	 * @param user
+	 * @return True if the login and the password matches the information in the
+	 *         DDBB, false otherwise
+	 */
+	@PostMapping("/logout")
+	public void logout(@RequestBody UserLogged sessionId) {
+
+		Long userId = sessionManager.get(sessionId.getSessionId());
+		if (userId != null) {
+			if (userRepo.findById(userId).isPresent()) {
+				sessionManager.remove(sessionId.getSessionId());
+
+			} else {
+				logger.error("The user login doesn't exist");
+				throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user login doesn't exist");
+			}
+
+		} else {
+			logger.error("The user wasn't logged in");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user wasn't logged in");
+		}
+	}
+
 	@GetMapping(path = "/users")
 	public List<User> allUsers() {
-
 		logger.info("New request to list all existing users");
 		return Lists.newArrayList(userRepo.findAll());
 	}
@@ -127,6 +195,7 @@ public class UserController extends AbstractController {
 
 		} else {
 			sendEmailNewUser(user);
+//			user.setUserPassword(encoder().encode(user.getUserPassword()));
 			return userRepo.save(user);
 		}
 	}

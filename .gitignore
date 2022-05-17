@@ -26,3 +26,9 @@ hs_err_pid*
 .classpath
 .project
 *.prefs
+/Bonitasoft PS Technical Challenge.pdf
+/docker-compose.yml
+/mvnw
+/mvnw.cmd
+/package-lock.json
+/package.json

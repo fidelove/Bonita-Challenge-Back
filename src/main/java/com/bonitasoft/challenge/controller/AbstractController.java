@@ -1,5 +1,6 @@
 package com.bonitasoft.challenge.controller;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -34,6 +35,9 @@ public abstract class AbstractController {
 
 	@Autowired
 	CommentRepo commentRepo;
+
+	@Autowired
+	Map<String, Long> sessionManager;
 
 	Logger logger = LogManager.getLogger(AbstractController.class);
 
