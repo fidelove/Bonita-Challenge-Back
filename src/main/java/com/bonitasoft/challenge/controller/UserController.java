@@ -1,22 +1,9 @@
 package com.bonitasoft.challenge.controller;
 
-import java.io.IOException;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 
-import javax.mail.Message;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.PasswordAuthentication;
-import javax.mail.Session;
-import javax.mail.Transport;
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeBodyPart;
-import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
+import javax.annotation.Resource;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
@@ -36,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.bonitasoft.challenge.email.EmailService;
 import com.bonitasoft.challenge.model.Recipe;
 import com.bonitasoft.challenge.model.User;
 import com.bonitasoft.challenge.model.UserLogged;
@@ -47,62 +35,20 @@ import com.google.common.collect.Lists;
 		RequestMethod.DELETE })
 public class UserController extends AbstractController {
 
-	/**
-	 * Bean used to encode passwords to be stored in the DDBB
-	 * 
-	 * @return
-	 */
+	@Resource
+	private EmailService emailService;
+
+//	/**
+//	 * Bean used to encode passwords to be stored in the DDBB
+//	 * 
+//	 * @return
+//	 */
 //	@Bean
 //	public PasswordEncoder encoder() {
 //		return new BCryptPasswordEncoder();
 //	}
 
 	Logger logger = LogManager.getLogger(UserController.class);
-
-	/**
-	 * Send an email to the new created user
-	 * 
-	 * @param user Object containing the user information
-	 * @throws MessagingException
-	 * @throws AddressException
-	 * @throws IOException
-	 */
-	private void sendEmailNewUser(User user) {
-
-		try {
-			Properties props = new Properties();
-			props.put("mail.smtp.auth", "true");
-			props.put("mail.smtp.starttls.enable", "true");
-			props.put("mail.smtp.host", "smtp.gmail.com");
-			props.put("mail.smtp.port", "587");
-
-			Session session = Session.getInstance(props, new javax.mail.Authenticator() {
-				protected PasswordAuthentication getPasswordAuthentication() {
-					return new PasswordAuthentication("bonitasoft.challenge@gmail.com", "BoNiTaSoFtPaSsWoRd");
-				}
-			});
-			Message msg = new MimeMessage(session);
-			msg.setFrom(new InternetAddress("bonitasoft.challenge@gmail.com", false));
-
-			msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(user.getUserEmail()));
-			msg.setSubject("New account created");
-			msg.setContent(String.format(
-					"Your new account has been created successfully!!<br> The username is %s and the password is %s",
-					user.getUserName(), user.getUserPassword()), "text/html");
-			msg.setSentDate(new Date());
-
-			MimeBodyPart messageBodyPart = new MimeBodyPart();
-			messageBodyPart.setContent("Your new account has been created successfully", "text/html");
-
-			Multipart multipart = new MimeMultipart();
-			multipart.addBodyPart(messageBodyPart);
-			msg.setContent(multipart);
-			Transport.send(msg);
-
-		} catch (MessagingException e) {
-			logger.error("The email couldn't be sent with this error: " + e.getMessage(), e);
-		}
-	}
 
 	/**
 	 * API used to login
@@ -123,8 +69,8 @@ public class UserController extends AbstractController {
 			return userLogged;
 
 		} else {
-			logger.error("The user login doesn't exist");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user login doesn't exist");
+			logger.error("The user login or password is wrong");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user login or password is wrong");
 		}
 	}
 
@@ -136,12 +82,12 @@ public class UserController extends AbstractController {
 	 *         DDBB, false otherwise
 	 */
 	@PostMapping("/logout")
-	public void logout(@RequestBody UserLogged sessionId) {
+	public void logout(@RequestBody UserLogged loggedUser) {
 
-		Long userId = sessionManager.get(sessionId.getSessionId());
+		Long userId = sessionManager.get(loggedUser.getSessionId());
 		if (userId != null) {
 			if (userRepo.findById(userId).isPresent()) {
-				sessionManager.remove(sessionId.getSessionId());
+				sessionManager.remove(loggedUser.getSessionId());
 
 			} else {
 				logger.error("The user login doesn't exist");
@@ -190,11 +136,12 @@ public class UserController extends AbstractController {
 		logger.info("New request to create a new user with this information" + user.toString());
 
 		if (!userRepo.findByUserNameOrUserEmail(user.getUserName(), user.getUserEmail()).isEmpty()) {
-			logger.error("The user already exists");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user already exists");
+			logger.error("There is already a user with that username or email. Please change them");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"There is already a user with that username or email. Please change them");
 
 		} else {
-			sendEmailNewUser(user);
+			emailService.sendEmailNewUser(user);
 //			user.setUserPassword(encoder().encode(user.getUserPassword()));
 			return userRepo.save(user);
 		}
@@ -225,12 +172,11 @@ public class UserController extends AbstractController {
 
 		// check if the username or email address already exist in the DDBB, because
 		// they need to be unique
-		boolean userNameOrEmailAlreadyUsed = usersWithUsernameOrEmail.stream().filter(u -> !u.getId().equals(id))
-				.findAny().isPresent();
+		if (usersWithUsernameOrEmail.stream().filter(u -> !u.getId().equals(id)).findAny().isPresent()) {
 
-		if (userNameOrEmailAlreadyUsed) {
-			logger.error("The user information already exists");
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The user information already exists");
+			logger.error("The user information already exists for another user");
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+					"The user information already exists for another user");
 
 		} else {
 			user.setId(id);
@@ -254,10 +200,6 @@ public class UserController extends AbstractController {
 
 		List<Recipe> recipesToBeDeleted = recipeRepo.findByAuthor(userToBeDeleted);
 		recipesToBeDeleted.stream().forEach(r -> {
-			// TODO: igual el comments no hace falta
-//				r.getComments().stream().forEach(c -> {
-//					commentRepo.delete(c);
-//				});
 			recipeRepo.delete(r);
 		});
 

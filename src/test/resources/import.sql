@@ -4,6 +4,9 @@ INSERT INTO users (user_id,role_type,user_email,user_name,user_password) VALUES 
 INSERT INTO users (user_id,role_type,user_email,user_name,user_password) VALUES (4,'USER','user1@bonita.com','user1','password');
 INSERT INTO users (user_id,role_type,user_email,user_name,user_password) VALUES (5,'USER','user2@bonita.com','user2','password');
 
+DROP SEQUENCE user_id_sequence;
+CREATE SEQUENCE user_id_sequence INCREMENT BY 1 MINVALUE 1 MAXVALUE 9223372036854775807 START 6 CACHE 1 NO CYCLE;
+	
 INSERT INTO recipes (recipe_id, recipe_name,author_id) VALUES (1, 'Recipe 1 by user 2',2);
 INSERT INTO recipes (recipe_id, recipe_name,author_id) VALUES (2, 'Recipe 2 by user 2',2);
 INSERT INTO recipes (recipe_id, recipe_name,author_id) VALUES (3, 'Recipe 3 by user 2',2);

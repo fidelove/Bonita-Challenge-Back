@@ -1,4 +1,4 @@
-package com.bonitasoft.challenge.web;
+package com.bonitasoft.challenge.rest;
 
 import static org.junit.Assert.assertEquals;
 

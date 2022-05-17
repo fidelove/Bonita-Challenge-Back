@@ -35,7 +35,7 @@ import com.bonitasoft.challenge.repository.UserRepo;
 @SpringBootTest
 class RecipeControllerTest {
 
-	private static final String THIS_IS_A_FAKE_STRING = "This is a fake string";
+	private static final String THIS_IS_A_FAKE_STRING = "THIS_IS_A_FAKE_STRING";
 	private static final int THIS_IS_A_FAKE_INT = 123;
 	private static final long THIS_IS_A_FAKE_LONG = 111L;
 	private static final long THIS_IS_ANOTHER_FAKE_LONG = 222L;
@@ -161,6 +161,7 @@ class RecipeControllerTest {
 		when(userRepo.findById(anyLong())).thenReturn(optionalUserMock);
 
 		Recipe recipeMock = mock(Recipe.class);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
 			recipeController.createRecipe(1l, recipeMock);
