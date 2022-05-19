@@ -14,6 +14,8 @@ import javax.validation.constraints.NotNull;
 
 import org.springframework.lang.NonNull;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Entity
 @Table(name = "users")
 public class User {
@@ -34,6 +36,7 @@ public class User {
 	@Column(name = "user_name", unique = true)
 	@NonNull
 	@NotBlank
+	@JsonProperty("name")
 	private String userName;
 
 	@Column(name = "user_password")

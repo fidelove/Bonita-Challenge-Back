@@ -20,6 +20,8 @@ import javax.validation.constraints.NotEmpty;
 
 import org.springframework.lang.NonNull;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Entity
 @Table(name = "recipes")
 public class Recipe {
@@ -38,6 +40,7 @@ public class Recipe {
 	@Column(name = "recipe_name")
 	@NonNull
 	@NotBlank
+	@JsonProperty("name")
 	private String recipeName;
 
 	@ManyToMany(cascade = CascadeType.MERGE)
