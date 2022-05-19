@@ -16,7 +16,6 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotEmpty;
 
 import org.springframework.lang.NonNull;
 
@@ -46,13 +45,11 @@ public class Recipe {
 	@ManyToMany(cascade = CascadeType.MERGE)
 	@JoinTable(name = "ingredients_recipes", joinColumns = { @JoinColumn(name = "recipe_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "ingredient_id") })
-	@NotEmpty
 	private List<Ingredient> ingredients;
 
 	@ManyToMany(cascade = CascadeType.MERGE)
 	@JoinTable(name = "keywords_recipes", joinColumns = { @JoinColumn(name = "recipe_id") }, inverseJoinColumns = {
 			@JoinColumn(name = "keyword_id") })
-	@NotEmpty
 	private List<Keyword> keywords;
 
 	@OneToMany(mappedBy = "recipe", cascade = CascadeType.REMOVE)
