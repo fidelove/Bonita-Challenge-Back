@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,8 +32,7 @@ import com.google.common.collect.Lists;
 
 @RestController
 @RequestMapping("/api/v1")
-@CrossOrigin(origins = "*", methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT,
-		RequestMethod.DELETE })
+@CrossOrigin
 public class RecipeController extends AbstractController {
 
 	Logger logger = LogManager.getLogger(RecipeController.class);
@@ -42,12 +41,17 @@ public class RecipeController extends AbstractController {
 	 * API to list the recipes. If the param keywords is present, the request will
 	 * be filtered, otherwise all recipes will be returned
 	 * 
-	 * @param keywords Optional parameter. If it's present, it'll contain the
-	 *                 keywords
+	 * @param sessionId The session ID
+	 * @param keywords  Optional parameter. If it's present, it'll contain the
+	 *                  keywords
 	 * @return List containing the requested recipes
 	 */
 	@GetMapping("/recipes")
-	public List<Recipe> getRecipesByKeywords(@RequestParam Optional<List<String>> keywords) {
+	public List<Recipe> getRecipesByKeywords(@RequestHeader(name = "sessionid") String sessionId,
+			@RequestParam Optional<List<String>> keywords) {
+
+		// Check if the session id is valid
+		checkSessionId(sessionId);
 
 		// If there is a filter by keywords
 		if (keywords.isPresent()) {
@@ -70,15 +74,18 @@ public class RecipeController extends AbstractController {
 	/**
 	 * API to get all the recipes created by a user
 	 * 
-	 * @param id ID of the user
+	 * @param sessionId The session ID
 	 * @return List containing all the recipes created by the user
 	 * 
 	 * @exception ResponseStatusException In these cases: <br>
 	 *                                    - When the user doesn't exist <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@GetMapping("/user/{id}/recipe")
-	public List<Recipe> getRecipesByUser(@NotNull @PathVariable("id") Long id) {
+	@GetMapping("/recipe")
+	public List<Recipe> getRecipesByUser(@RequestHeader(name = "sessionid") String sessionId) {
+
+		// Check if the session id is valid
+		Long id = checkSessionId(sessionId);
 
 		logger.info("Listing all recipes for user with ID %d", id);
 
@@ -90,8 +97,8 @@ public class RecipeController extends AbstractController {
 	/**
 	 * API to create a new recipe
 	 * 
-	 * @param id     ID of the user creating the new recipe
-	 * @param recipe Information of the new recipe
+	 * @param sessionId The session ID
+	 * @param recipe    Information of the new recipe
 	 * @return The created recipe
 	 * 
 	 * @exception ResponseStatusException In these cases: <br>
@@ -100,8 +107,11 @@ public class RecipeController extends AbstractController {
 	 *                                    - When the user doesn't exist <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@PostMapping("/user/{id}/recipe")
-	public Recipe createRecipe(@NotNull @PathVariable("id") Long id, @Valid @RequestBody Recipe recipe) {
+	@PostMapping("/recipe")
+	public Recipe createRecipe(@RequestHeader(name = "sessionid") String sessionId, @Valid @RequestBody Recipe recipe) {
+
+		// Check if the session id is valid
+		Long id = checkSessionId(sessionId);
 
 		logger.info(String.format("Create a new recipe for user with ID %d, with recipe information %s", id,
 				recipe.toString()));
@@ -150,9 +160,9 @@ public class RecipeController extends AbstractController {
 	/**
 	 * API to update a recipe for an existing user
 	 * 
-	 * @param userId   ID of the user who has created the recipe
-	 * @param recipeId ID of the recipe to be updated
-	 * @param recipe   The object containing the info to be updated
+	 * @param sessionId The session ID
+	 * @param recipeId  ID of the recipe to be updated
+	 * @param recipe    The object containing the info to be updated
 	 * @return An object containing the new information of the recipe
 	 * 
 	 * @exception ResponseStatusException In these cases: <br>
@@ -163,9 +173,12 @@ public class RecipeController extends AbstractController {
 	 *                                    chosen <br>
 	 *                                    - When the user isn't a chef
 	 */
-	@PutMapping("/user/{id}/recipe/{recipeId}")
-	public Recipe updateRecipe(@NotNull @PathVariable("id") Long userId,
+	@PutMapping("/recipe/{recipeId}")
+	public Recipe updateRecipe(@RequestHeader(name = "sessionid") String sessionId,
 			@NotNull @PathVariable("recipeId") Long recipeId, @Valid @RequestBody Recipe recipe) {
+
+		// Check if the session id is valid
+		Long userId = checkSessionId(sessionId);
 
 		logger.info(
 				String.format("Updating an existing recipe with ID %d for user with ID %d, with recipe information %s",
@@ -220,8 +233,8 @@ public class RecipeController extends AbstractController {
 	/**
 	 * API to delete the recipe
 	 * 
-	 * @param id       ID of the author
-	 * @param recipeId ID of the recipe
+	 * @param sessionId The session ID
+	 * @param recipeId  ID of the recipe
 	 * 
 	 * @exception ResponseStatusException In these cases: <br>
 	 *                                    - When the recipe doesn't exist <br>
@@ -229,9 +242,12 @@ public class RecipeController extends AbstractController {
 	 *                                    - When the user isn't a chef - When the
 	 *                                    user doesn't exist
 	 */
-	@DeleteMapping("/user/{id}/recipe/{recipeId}")
-	public void deleteRecipe(@NotNull @PathVariable("id") Long userId,
+	@DeleteMapping("/recipe/{recipeId}")
+	public void deleteRecipe(@RequestHeader(name = "sessionid") String sessionId,
 			@NotNull @PathVariable("recipeId") Long recipeId) {
+
+		// Check if the session id is valid
+		Long userId = checkSessionId(sessionId);
 
 		logger.info(String.format("New request to delete the recipe with ID %d created by the user with ID %d",
 				recipeId, userId));

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -34,15 +35,30 @@ public class ChallengeApplicationUserTests {
 
 	private MockMvc mvc;
 	private ObjectMapper objectMapper;
+	private HttpHeaders header;
 
 	@Autowired
 	WebApplicationContext webApplicationContext;
 
 	@BeforeAll
-	public void setup() {
+	public void setup() throws Exception {
 		mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
 		objectMapper = new ObjectMapper();
 		objectMapper.setSerializationInclusion(Include.NON_EMPTY);
+
+		String uri = "/api/v1/login";
+
+		User user = new User();
+		user.setUserName("admin");
+		user.setUserPassword("password");
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+				.content(objectMapper.writeValueAsString(user)).contentType(MediaType.APPLICATION_JSON_VALUE))
+				.andReturn();
+
+		UserLogged userLogged = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), UserLogged.class);
+		header = new HttpHeaders();
+		header.add("sessionId", userLogged.getSessionId());
+
 	}
 
 	@Test
@@ -111,11 +127,14 @@ public class ChallengeApplicationUserTests {
 				.andReturn();
 
 		UserLogged userLogged = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), UserLogged.class);
+		HttpHeaders loginHeader = new HttpHeaders();
+		loginHeader.add("sessionId", userLogged.getSessionId());
 
 		uri = "/api/v1/logout";
 
-		mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).content(objectMapper.writeValueAsString(userLogged))
-				.contentType(MediaType.APPLICATION_JSON_VALUE)).andReturn();
+		mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).headers(loginHeader)
+				.content(objectMapper.writeValueAsString(userLogged)).contentType(MediaType.APPLICATION_JSON_VALUE))
+				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
 	}
@@ -128,11 +147,11 @@ public class ChallengeApplicationUserTests {
 
 		UserLogged userLogged = new UserLogged();
 		userLogged.setSessionId("unexisting sessionId");
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).header("sessionId", "")
 				.content(objectMapper.writeValueAsString(userLogged)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
-		assertEquals(400, mvcResult.getResponse().getStatus());
+		assertEquals(401, mvcResult.getResponse().getStatus());
 		assertEquals("The user wasn't logged in", mvcResult.getResponse().getErrorMessage());
 	}
 
@@ -143,7 +162,8 @@ public class ChallengeApplicationUserTests {
 
 		String uri = "/api/v1/users";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
@@ -152,25 +172,13 @@ public class ChallengeApplicationUserTests {
 	}
 
 	@Test
-	@Order(7)
-	public void getUserByIdDoesntExist() throws Exception {
-
-		String uri = "/api/v1/user/7";
-
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
-				.andReturn();
-
-		assertEquals(400, mvcResult.getResponse().getStatus());
-		assertEquals("The user doesn't exist", mvcResult.getResponse().getErrorMessage());
-	}
-
-	@Test
 	@Order(8)
 	public void getUserByIdOk() throws Exception {
 
 		String uri = "/api/v1/user/3";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		User user = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), User.class);
@@ -189,7 +197,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("chef3@bonita.com");
 		newUser.setRole(RoleType.CHEF);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -209,7 +217,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("chef1@bonita.com");
 		newUser.setRole(RoleType.CHEF);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -229,7 +237,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("chef3@bonita.com");
 		newUser.setRole(RoleType.CHEF);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -250,7 +258,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("user2@bonita.com");
 		newUser.setRole(RoleType.USER);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -268,7 +276,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("user1@bonita.com");
 		newUser.setRole(RoleType.USER);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -286,7 +294,7 @@ public class ChallengeApplicationUserTests {
 		newUser.setUserPassword("password");
 		newUser.setUserEmail("chef4@bonita.com");
 		newUser.setRole(RoleType.CHEF);
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newUser)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -306,10 +314,13 @@ public class ChallengeApplicationUserTests {
 
 		String uri = "/api/v1/user/10";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.delete(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.delete(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
-		mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
+		mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
+				.andReturn();
 
 		assertEquals(400, mvcResult.getResponse().getStatus());
 		assertEquals("The user doesn't exist", mvcResult.getResponse().getErrorMessage());
@@ -323,13 +334,16 @@ public class ChallengeApplicationUserTests {
 		// First delete the user
 		String uri = "/api/v1/user/6";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.delete(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.delete(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
 
 		// Then verify the user has been properly deleted
-		mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE)).andReturn();
+		mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
+				.andReturn();
 
 		assertEquals(400, mvcResult.getResponse().getStatus());
 		assertEquals("The user doesn't exist", mvcResult.getResponse().getErrorMessage());

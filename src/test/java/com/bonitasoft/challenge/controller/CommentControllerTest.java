@@ -5,9 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,7 @@ public class CommentControllerTest {
 	private static final long MOCK_RECIPE_ID = 222L;
 	private static final long MOCK_COMMENT_ID = 321L;
 	private static final String MOCK_COMMENT = "MOCK COMMENT";
+	private static final String MOCK_SESSION_ID = "MOCK_SESSION_ID";
 
 	@Autowired
 	CommentController commentController;
@@ -43,6 +46,9 @@ public class CommentControllerTest {
 
 	@MockBean
 	CommentRepo commentRepo;
+
+	@MockBean
+	Map<String, Long> sessionManager;
 
 	@Test
 	public void createCommentOK() {
@@ -67,8 +73,11 @@ public class CommentControllerTest {
 		when(mockSavedComment.getId()).thenReturn(MOCK_COMMENT_ID);
 		when(commentRepo.save(any(Comment.class))).thenReturn(mockSavedComment);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(MOCK_USER_ID);
+
 		Comment mockComment = mock(Comment.class);
-		Comment createdComment = commentController.createComment(MOCK_USER_ID, MOCK_RECIPE_ID, mockComment);
+		Comment createdComment = commentController.createComment(MOCK_SESSION_ID, MOCK_RECIPE_ID, mockComment);
 
 		assertEquals(MOCK_COMMENT, createdComment.getComment());
 		assertEquals(MOCK_COMMENT_ID, createdComment.getId());
@@ -85,8 +94,11 @@ public class CommentControllerTest {
 		// Mock comment
 		Comment mockComment = mock(Comment.class);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(MOCK_USER_ID);
+
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			commentController.createComment(MOCK_USER_ID, MOCK_RECIPE_ID, mockComment);
+			commentController.createComment(MOCK_SESSION_ID, MOCK_RECIPE_ID, mockComment);
 		});
 
 		assertTrue(exception.getMessage().contains("The user doesn't exist"));
@@ -110,8 +122,11 @@ public class CommentControllerTest {
 		// Mock comment
 		Comment mockComment = mock(Comment.class);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(MOCK_USER_ID);
+
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			commentController.createComment(MOCK_USER_ID, MOCK_RECIPE_ID, mockComment);
+			commentController.createComment(MOCK_SESSION_ID, MOCK_RECIPE_ID, mockComment);
 		});
 
 		assertTrue(exception.getMessage().contains("The recipe doesn't exist"));

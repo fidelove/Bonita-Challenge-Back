@@ -13,6 +13,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -23,6 +24,8 @@ import org.springframework.web.context.WebApplicationContext;
 import com.bonitasoft.challenge.model.Ingredient;
 import com.bonitasoft.challenge.model.Keyword;
 import com.bonitasoft.challenge.model.Recipe;
+import com.bonitasoft.challenge.model.User;
+import com.bonitasoft.challenge.model.UserLogged;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -33,15 +36,30 @@ public class ChallengeApplicationRecipeTests {
 
 	private MockMvc mvc;
 	private ObjectMapper objectMapper;
+	private HttpHeaders header;
 
 	@Autowired
 	WebApplicationContext webApplicationContext;
 
 	@BeforeAll
-	public void setup() {
+	public void setup() throws Exception {
 		mvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
 		objectMapper = new ObjectMapper();
 		objectMapper.setSerializationInclusion(Include.NON_EMPTY);
+
+		String uri = "/api/v1/login";
+
+		User user = new User();
+		user.setUserName("chef1");
+		user.setUserPassword("password");
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+				.content(objectMapper.writeValueAsString(user)).contentType(MediaType.APPLICATION_JSON_VALUE))
+				.andReturn();
+
+		UserLogged userLogged = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), UserLogged.class);
+		header = new HttpHeaders();
+		header.add("sessionId", userLogged.getSessionId());
+
 	}
 
 	@SuppressWarnings("unchecked")
@@ -49,7 +67,8 @@ public class ChallengeApplicationRecipeTests {
 	@Order(1)
 	public void getRecipesList() throws Exception {
 		String uri = "/api/v1/recipes";
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
@@ -62,7 +81,8 @@ public class ChallengeApplicationRecipeTests {
 	@Order(2)
 	public void getRecipesByKeywords() throws Exception {
 		String uri = "/api/v1/recipes?keywords=Keyword4";
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
@@ -71,28 +91,15 @@ public class ChallengeApplicationRecipeTests {
 
 	}
 
-	@Test
-	@Order(3)
-	public void getRecipeByAdmin() throws Exception {
-
-		String uri = "/api/v1/user/1/recipe";
-
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
-				.andReturn();
-
-		assertEquals(400, mvcResult.getResponse().getStatus());
-		assertEquals("The role of the user doesn't allow the requested operation",
-				mvcResult.getResponse().getErrorMessage());
-	}
-
 	@SuppressWarnings("unchecked")
 	@Test
-	@Order(4)
+	@Order(3)
 	public void getRecipeByChef() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe";
+		String uri = "/api/v1/recipe";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.get(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.get(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());
@@ -101,10 +108,10 @@ public class ChallengeApplicationRecipeTests {
 	}
 
 	@Test
-	@Order(5)
+	@Order(4)
 	public void createRecipeOk() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe";
+		String uri = "/api/v1/recipe";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("Recipe 7 by user 2");
@@ -113,7 +120,7 @@ public class ChallengeApplicationRecipeTests {
 		List<Keyword> keywordsList = List.of(new Keyword("Keyword6"), new Keyword("Keyword13"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -129,10 +136,10 @@ public class ChallengeApplicationRecipeTests {
 	}
 
 	@Test
-	@Order(6)
+	@Order(5)
 	public void createRecipeDuplicated() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe";
+		String uri = "/api/v1/recipe";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("Recipe 7 by user 2");
@@ -141,7 +148,7 @@ public class ChallengeApplicationRecipeTests {
 		List<Keyword> keywordsList = List.of(new Keyword("Keyword6"), new Keyword("Keyword13"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -151,10 +158,10 @@ public class ChallengeApplicationRecipeTests {
 	}
 
 	@Test
-	@Order(7)
-	public void createRecipeUserDoesntExist() throws Exception {
+	@Order(6)
+	public void createRecipeUserNotLogged() throws Exception {
 
-		String uri = "/api/v1/user/10/recipe";
+		String uri = "/api/v1/recipe";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("Recipe");
@@ -163,19 +170,20 @@ public class ChallengeApplicationRecipeTests {
 		List<Keyword> keywordsList = List.of(new Keyword("Keyword"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.post(uri).header("sessionId", "")
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
-		assertEquals(400, mvcResult.getResponse().getStatus());
-		assertEquals("The user doesn't exist", mvcResult.getResponse().getErrorMessage());
+		assertEquals(401, mvcResult.getResponse().getStatus());
+		assertEquals("The user wasn't logged in", mvcResult.getResponse().getErrorMessage());
+
 	}
 
 	@Test
-	@Order(8)
+	@Order(7)
 	public void updateRecipeOk() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe/7";
+		String uri = "/api/v1/recipe/7";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("New name");
@@ -185,7 +193,7 @@ public class ChallengeApplicationRecipeTests {
 				new Keyword("Keyword13"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -200,10 +208,10 @@ public class ChallengeApplicationRecipeTests {
 	}
 
 	@Test
-	@Order(9)
+	@Order(8)
 	public void updateRecipeDoesntExist() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe/10";
+		String uri = "/api/v1/recipe/10";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("Recipe");
@@ -212,7 +220,7 @@ public class ChallengeApplicationRecipeTests {
 		List<Keyword> keywordsList = List.of(new Keyword("Keyword"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -221,10 +229,10 @@ public class ChallengeApplicationRecipeTests {
 	}
 
 	@Test
-	@Order(10)
+	@Order(9)
 	public void updateRecipeSameName() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe/1";
+		String uri = "/api/v1/recipe/1";
 
 		Recipe newRecipe = new Recipe();
 		newRecipe.setRecipeName("Recipe 2 by user 2");
@@ -233,7 +241,7 @@ public class ChallengeApplicationRecipeTests {
 		List<Keyword> keywordsList = List.of(new Keyword("Keyword"));
 		newRecipe.setKeywords(keywordsList);
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri)
+		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.put(uri).headers(header)
 				.content(objectMapper.writeValueAsString(newRecipe)).contentType(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
@@ -246,9 +254,10 @@ public class ChallengeApplicationRecipeTests {
 	@Order(10)
 	public void deleteRecipeDoesntBelongToUser() throws Exception {
 
-		String uri = "/api/v1/user/3/recipe/2";
+		String uri = "/api/v1/recipe/4";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.delete(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.delete(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(400, mvcResult.getResponse().getStatus());
@@ -260,9 +269,10 @@ public class ChallengeApplicationRecipeTests {
 	@Order(11)
 	public void deleteRecipeOk() throws Exception {
 
-		String uri = "/api/v1/user/2/recipe/7";
+		String uri = "/api/v1/recipe/7";
 
-		MvcResult mvcResult = mvc.perform(MockMvcRequestBuilders.delete(uri).accept(MediaType.APPLICATION_JSON_VALUE))
+		MvcResult mvcResult = mvc
+				.perform(MockMvcRequestBuilders.delete(uri).headers(header).accept(MediaType.APPLICATION_JSON_VALUE))
 				.andReturn();
 
 		assertEquals(200, mvcResult.getResponse().getStatus());

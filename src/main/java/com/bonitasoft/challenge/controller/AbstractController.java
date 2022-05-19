@@ -109,4 +109,22 @@ public abstract class AbstractController {
 
 		return recipe.get();
 	}
+
+	/**
+	 * Check if the sessionId is correct
+	 * 
+	 * @param sessionId the session ID
+	 * 
+	 * @exception ResponseStatusException if the session ID is incorrect
+	 */
+	protected Long checkSessionId(String sessionId) {
+
+		Long userId = sessionManager.get(sessionId);
+		if (userId == null) {
+			logger.error("The user wasn't logged in");
+			throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "The user wasn't logged in");
+		} else {
+			return userId;
+		}
+	}
 }

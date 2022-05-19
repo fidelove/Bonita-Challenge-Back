@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bonitasoft.challenge.model.Comment;
@@ -22,8 +22,7 @@ import com.bonitasoft.challenge.model.User;
 
 @RestController
 @RequestMapping("/api/v1")
-@CrossOrigin(origins = "*", methods = { RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT,
-		RequestMethod.DELETE })
+@CrossOrigin
 public class CommentController extends AbstractController {
 
 	Logger logger = LogManager.getLogger(CommentController.class);
@@ -31,18 +30,22 @@ public class CommentController extends AbstractController {
 	/**
 	 * Create a new comment to a recipe by a user
 	 * 
-	 * @param userId   ID of the user creating the comment
-	 * @param recipeId ID of the recipe that will receive the comment
-	 * @param comment  The comment to be created
+	 * @param sessionId The session ID
+	 * @param recipeId  ID of the recipe that will receive the comment
+	 * @param comment   The comment to be created
 	 * @return An object containing all the information regarding the comment
 	 */
-	@PostMapping("/user/{userId}/recipe/{recipeId}/comment")
-	public Comment createComment(@NotNull @PathVariable("userId") Long userId,
+	@PostMapping("/recipe/{recipeId}/comment")
+	public Comment createComment(@RequestHeader(name = "sessionid") String sessionId,
 			@NotNull @PathVariable("recipeId") Long recipeId, @Valid @RequestBody Comment comment) {
+
+		// Check if the session id is valid
+		Long userId = checkSessionId(sessionId);
 
 		logger.info(String.format(
 				"Creating a new comment by user with ID %d, in recipe with ID %d with the next comment: %s", userId,
 				recipeId, comment.getComment()));
+
 		// Check if the user and the recipe exist
 		User userCreatingComment = checkUser(userId, RoleType.USER);
 		Recipe recipeToBeCommented = checkRecipe(recipeId);

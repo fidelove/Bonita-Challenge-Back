@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,8 @@ class RecipeControllerTest {
 	private static final int THIS_IS_A_FAKE_INT = 123;
 	private static final long THIS_IS_A_FAKE_LONG = 111L;
 	private static final long THIS_IS_ANOTHER_FAKE_LONG = 222L;
+	private static final String MOCK_SESSION_ID = "MOCK_SESSION_ID";
+	private static final long MOCK_USER_ID = 111L;
 
 	@Autowired
 	RecipeController recipeController;
@@ -55,6 +58,9 @@ class RecipeControllerTest {
 	@MockBean
 	IngredientRepo ingredientRepo;
 
+	@MockBean
+	Map<String, Long> sessionManager;
+
 	@Test
 	public void testGetAllRecipes() {
 
@@ -66,7 +72,10 @@ class RecipeControllerTest {
 		Arrays.asList(mockRecipe).iterator();
 		when(recipeRepo.findAll()).thenReturn(returnedRecipe);
 
-		List<Recipe> recipesByKeywords = recipeController.getRecipesByKeywords(Optional.empty());
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(MOCK_USER_ID);
+
+		List<Recipe> recipesByKeywords = recipeController.getRecipesByKeywords(MOCK_SESSION_ID, Optional.empty());
 
 		assertEquals(recipesByKeywords.size(), 1);
 		assertEquals(recipesByKeywords.get(0).getId().longValue(), THIS_IS_A_FAKE_LONG);
@@ -85,8 +94,11 @@ class RecipeControllerTest {
 		when(recipeList.toString()).thenReturn(THIS_IS_A_FAKE_STRING);
 		when(recipeRepo.findByKeywordsIn(anyList())).thenReturn(recipeList);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(MOCK_USER_ID);
+
 		List<String> keywords = Arrays.asList("filter1", "filter2");
-		List<Recipe> recipesByKeywords = recipeController.getRecipesByKeywords(Optional.of(keywords));
+		List<Recipe> recipesByKeywords = recipeController.getRecipesByKeywords(MOCK_SESSION_ID, Optional.of(keywords));
 
 		assertEquals(recipesByKeywords.size(), THIS_IS_A_FAKE_INT);
 		assertEquals(recipesByKeywords.toString(), THIS_IS_A_FAKE_STRING);
@@ -107,7 +119,10 @@ class RecipeControllerTest {
 		when(recipeList.toString()).thenReturn(THIS_IS_A_FAKE_STRING);
 		when(recipeRepo.findByAuthor(any())).thenReturn(recipeList);
 
-		List<Recipe> recipesByUser = recipeController.getRecipesByUser(1L);
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(1L);
+
+		List<Recipe> recipesByUser = recipeController.getRecipesByUser(MOCK_SESSION_ID);
 
 		assertEquals(recipesByUser.size(), THIS_IS_A_FAKE_INT);
 		assertEquals(recipesByUser.toString(), THIS_IS_A_FAKE_STRING);
@@ -146,8 +161,11 @@ class RecipeControllerTest {
 
 		when(recipeRepo.save(any(Recipe.class))).thenReturn(recipeMock);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(1l);
+
 		// Invoke method
-		Recipe createdRecipe = recipeController.createRecipe(1l, recipeMock);
+		Recipe createdRecipe = recipeController.createRecipe(MOCK_SESSION_ID, recipeMock);
 
 		assertEquals(THIS_IS_A_FAKE_STRING, createdRecipe.getRecipeName());
 		assertEquals(THIS_IS_ANOTHER_FAKE_LONG, createdRecipe.getId());
@@ -162,9 +180,12 @@ class RecipeControllerTest {
 
 		Recipe recipeMock = mock(Recipe.class);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(1l);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			recipeController.createRecipe(1l, recipeMock);
+			recipeController.createRecipe(MOCK_SESSION_ID, recipeMock);
 		});
 
 		assertTrue(exception.getMessage().contains("The user doesn't exist"));
@@ -179,9 +200,13 @@ class RecipeControllerTest {
 		when(userRepo.findById(anyLong())).thenReturn(userFoundById);
 
 		Recipe recipeMock = mock(Recipe.class);
+
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(1l);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			recipeController.createRecipe(1l, recipeMock);
+			recipeController.createRecipe(MOCK_SESSION_ID, recipeMock);
 		});
 
 		assertTrue(exception.getMessage().contains("The role of the user doesn't allow the requested operation"));
@@ -215,8 +240,10 @@ class RecipeControllerTest {
 		// Mocke the save
 		when(recipeRepo.save(any(Recipe.class))).thenReturn(mockNewRecipe);
 
-		Recipe updatedRecipe = recipeController.updateRecipe(THIS_IS_A_FAKE_LONG, THIS_IS_ANOTHER_FAKE_LONG,
-				mockNewRecipe);
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
+		Recipe updatedRecipe = recipeController.updateRecipe(MOCK_SESSION_ID, THIS_IS_ANOTHER_FAKE_LONG, mockNewRecipe);
 
 		assertEquals(THIS_IS_ANOTHER_FAKE_LONG, updatedRecipe.getId());
 		assertEquals(THIS_IS_A_FAKE_STRING, updatedRecipe.getRecipeName());
@@ -236,8 +263,11 @@ class RecipeControllerTest {
 		Optional<Recipe> optionalRecipe = Optional.empty();
 		when(recipeRepo.findById(anyLong())).thenReturn(optionalRecipe);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			recipeController.updateRecipe(THIS_IS_A_FAKE_LONG, THIS_IS_ANOTHER_FAKE_LONG, mock(Recipe.class));
+			recipeController.updateRecipe(MOCK_SESSION_ID, THIS_IS_ANOTHER_FAKE_LONG, mock(Recipe.class));
 		});
 
 		assertTrue(exception.getMessage().contains("The recipe doesn't exist"));
@@ -275,8 +305,11 @@ class RecipeControllerTest {
 		when(mockNewRecipe.getRecipeName()).thenReturn(THIS_IS_A_FAKE_STRING);
 		when(mockNewRecipe.getIngredients()).thenReturn(new ArrayList<Ingredient>());
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			recipeController.updateRecipe(THIS_IS_A_FAKE_LONG, THIS_IS_A_FAKE_LONG, mockNewRecipe);
+			recipeController.updateRecipe(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG, mockNewRecipe);
 		});
 
 		assertTrue(exception.getMessage()
@@ -300,7 +333,10 @@ class RecipeControllerTest {
 		Optional<Recipe> optionalRecipe = Optional.of(mockRecipe);
 		when(recipeRepo.findById(anyLong())).thenReturn(optionalRecipe);
 
-		recipeController.deleteRecipe(THIS_IS_A_FAKE_LONG, THIS_IS_ANOTHER_FAKE_LONG);
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
+		recipeController.deleteRecipe(MOCK_SESSION_ID, THIS_IS_ANOTHER_FAKE_LONG);
 	}
 
 	@Test
@@ -322,8 +358,11 @@ class RecipeControllerTest {
 		Optional<Recipe> optionalRecipe = Optional.of(mockRecipe);
 		when(recipeRepo.findById(anyLong())).thenReturn(optionalRecipe);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			recipeController.deleteRecipe(THIS_IS_A_FAKE_LONG, THIS_IS_ANOTHER_FAKE_LONG);
+			recipeController.deleteRecipe(MOCK_SESSION_ID, THIS_IS_ANOTHER_FAKE_LONG);
 		});
 
 		assertTrue(exception.getMessage().contains("The recipe doesn't belong to the user "));

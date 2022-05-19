@@ -36,6 +36,7 @@ public class UserControllerTest {
 	private static final Long THIS_IS_A_FAKE_LONG = 1L;
 	private static final Long THIS_IS_ANOTHER_FAKE_LONG = 2L;
 	private static final String THIS_IS_A_FAKE_EMAIL = "email@bonita.com";
+	private static final String MOCK_SESSION_ID = "MOCK_SESSION_ID";
 
 	@Autowired
 	UserController userController;
@@ -123,8 +124,11 @@ public class UserControllerTest {
 		when(sessionManager.remove(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
 		when(userRepo.findById(anyLong())).thenReturn(Optional.of(mock(User.class)));
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
-		userController.logout(mockUser);
+		userController.logout(MOCK_SESSION_ID);
 	}
 
 	@Test
@@ -139,7 +143,7 @@ public class UserControllerTest {
 
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			userController.logout(mockUser);
+			userController.logout(MOCK_SESSION_ID);
 		});
 
 		assertTrue(exception.getMessage().contains("The user wasn't logged in"));
@@ -155,8 +159,11 @@ public class UserControllerTest {
 		Iterable<User> allMockedUsers = () -> Arrays.stream(arrayMockedUsers).iterator();
 		when(userRepo.findAll()).thenReturn(allMockedUsers);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
-		List<User> allUsers = userController.allUsers();
+		List<User> allUsers = userController.allUsers(MOCK_SESSION_ID);
 
 		assertEquals(1, allUsers.size());
 		assertEquals(THIS_IS_A_FAKE_LONG, allUsers.get(0).getId().longValue());
@@ -168,9 +175,12 @@ public class UserControllerTest {
 		// Mock methods
 		when(userRepo.findById(anyLong())).thenReturn(Optional.empty());
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			userController.getUserById(THIS_IS_A_FAKE_LONG);
+			userController.getUserById(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG);
 		});
 
 		assertTrue(exception.getMessage().contains("The user doesn't exist"));
@@ -184,8 +194,11 @@ public class UserControllerTest {
 		when(mockUser.getId()).thenReturn(THIS_IS_A_FAKE_LONG);
 		when(userRepo.findById(anyLong())).thenReturn(Optional.of(mockUser));
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
-		User userById = userController.getUserById(THIS_IS_A_FAKE_LONG);
+		User userById = userController.getUserById(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG);
 
 		assertEquals(THIS_IS_A_FAKE_LONG, userById.getId().longValue());
 	}
@@ -200,9 +213,12 @@ public class UserControllerTest {
 		when(mockUser.getUserEmail()).thenReturn(THIS_IS_A_FAKE_EMAIL);
 		when(userRepo.findByUserNameOrUserEmail(anyString(), anyString())).thenReturn(userList);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			userController.createUser(mockUser);
+			userController.createUser(MOCK_SESSION_ID, mockUser);
 		});
 
 		assertTrue(exception.getMessage()
@@ -220,8 +236,11 @@ public class UserControllerTest {
 		when(userRepo.findByUserNameOrUserEmail(anyString(), anyString())).thenReturn(Collections.emptyList());
 		when(userRepo.save(any(User.class))).thenReturn(mockUser);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
-		User createdUser = userController.createUser(mockUser);
+		User createdUser = userController.createUser(MOCK_SESSION_ID, mockUser);
 		assertEquals(THIS_IS_A_FAKE_LONG, createdUser.getId().longValue());
 	}
 
@@ -240,9 +259,12 @@ public class UserControllerTest {
 		when(mockUpdateUser.getUserName()).thenReturn(THIS_IS_A_FAKE_STRING);
 		when(mockUpdateUser.getUserEmail()).thenReturn(THIS_IS_A_FAKE_EMAIL);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
 		Exception exception = assertThrows(ResponseStatusException.class, () -> {
-			userController.updateUser(THIS_IS_A_FAKE_LONG, mockUpdateUser);
+			userController.updateUser(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG, mockUpdateUser);
 		});
 
 		assertTrue(exception.getMessage().contains("The user information already exists for another user"));
@@ -262,8 +284,11 @@ public class UserControllerTest {
 		when(userRepo.save(any(User.class))).thenReturn(mockUser);
 		User mockUpdateUser = mock(User.class);
 
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
 		// Invoke method
-		User updatedUser = userController.updateUser(THIS_IS_A_FAKE_LONG, mockUpdateUser);
+		User updatedUser = userController.updateUser(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG, mockUpdateUser);
 
 		assertEquals(THIS_IS_ANOTHER_FAKE_LONG, updatedUser.getId());
 		assertTrue(THIS_IS_A_FAKE_STRING.equals(updatedUser.getUserName()));
@@ -277,6 +302,9 @@ public class UserControllerTest {
 		when(userRepo.findById(anyLong())).thenReturn(Optional.of(mock(User.class)));
 		when(recipeRepo.findByAuthor(any(User.class))).thenReturn(Collections.emptyList());
 
-		userController.deleteUser(THIS_IS_A_FAKE_LONG);
+		// Mock session ID
+		when(sessionManager.get(anyString())).thenReturn(THIS_IS_A_FAKE_LONG);
+
+		userController.deleteUser(MOCK_SESSION_ID, THIS_IS_A_FAKE_LONG);
 	}
 }
