@@ -50,7 +50,7 @@ public class EmailService {
 
 			Session session = Session.getInstance(props, new javax.mail.Authenticator() {
 				protected PasswordAuthentication getPasswordAuthentication() {
-					return new PasswordAuthentication("bonitasoft.challenge@gmail.com", "BoNiTaSoFtPaSsWoRd");
+					return new PasswordAuthentication("fidel.besada@gmail.com", "BE.sa.DA.13");
 				}
 			});
 			Message msg = new MimeMessage(session);
